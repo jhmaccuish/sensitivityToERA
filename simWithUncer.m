@@ -8,7 +8,7 @@ function [ y, c, a, v, l ] = simWithUncer(policyA1,policyL,EV,startingA)
 % Declare global we need this file have access to
 global mu sigma rho T r Tretire
 global Agrid  Ygrid numSims 
-global normBnd benefit pension
+global normBnd benefit delta spouseInc numAIME
 
 %% ------------------------------------------------------------------------
 % Initialise arrays that will hold the paths of income consumption, value
@@ -34,20 +34,21 @@ ypathIndex = NaN(T, numSims);   % holds the index (location) in the vector
     seed1 = 1223424; % For the innovations
     seed2 = 234636;  % For initial income
     sig_inc = sigma/ ((1-rho^2)^0.5);
+    sig_initial = mean([0.073 0.053 0.110 0.112])^0.5;
     [ e ] = getNormalDraws( 0, sigma,  T, numSims, seed1);  % normally distributed random draws for the innovation
-    [ logy1 ] =  getNormalDraws( mu, sig_inc,  1, numSims, seed2); % a random draw for the initial income       
+    [ logy1 ] =  getNormalDraws( mu, sig_initial,  1, numSims, seed2); % a random draw for the initial income       
   
     % Get all the incomes, recursively
     for s = 1:1: numSims                           % loop through individuals
          ly(1, s) = truncate(logy1(1, s), -normBnd*sig_inc,normBnd*sig_inc );
-         y(1, s) = exp(ly(1, s));      
+         y(1, s) = exp(ly(1, s)+polyval(delta,1))+ spouseInc;      
           %y(1, s) = (s==1)*min(Ygrid(1,:))+(s>1)*max(Ygrid(1,:));
         for t = 1:1:T                              % loop through time periods for a particular individual               
             if (t ~= T)  % Get next year's income
                 %y(t+1, s) = (s==1)*min(Ygrid(t,:))+(s>1)*max(Ygrid(t,:));
                 ly(t+1, s) = (1 -rho) * mu + rho * ly(t, s) + e(t + 1, s);
                 ly(t+1, s) = truncate(ly(t+1, s), -normBnd*sig_inc,normBnd*sig_inc );
-                y(t+1, s) = exp( ly(t+1, s) );                
+                y(t+1, s) = exp( ly(t+1, s) + polyval(delta,t+1) )+ spouseInc;                
             end % if (t ~= T)
 
 %             if (t >= Tretire)                      % set income to zero if the individual has retired
@@ -58,8 +59,10 @@ ypathIndex = NaN(T, numSims);   % holds the index (location) in the vector
 
 %% ------------------------------------------------------------------------
 % Obtain consumption, asset and value profiles
-%-------------------------------------------------------------------------%#    
-     for s = 1:1: numSims           
+%-------------------------------------------------------------------------%#  
+     disp('Iteration:          \n');
+     for s = 1:1: numSims
+        fprintf('\b\b\b\b\b%5.0f',s);
         a(1, s) = startingA;                   
          for t = 1:1:T                              % loop through time periods for a particular individual               
             clear tA1 tV;                      %necessary as the dimensions of these change as we wor through this file

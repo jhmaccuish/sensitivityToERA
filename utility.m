@@ -9,8 +9,8 @@ global gamma nu hrsWrk
 if cons<=0 
    error('Error in utility. Consumption is <=0');
 end
-                                
-l=(L)*(hrsWrk)+(~L);
+%10/112 comuniting time -10/112                                
+l=(L)*(1-hrsWrk -10/112)+(~L);
 if gamma == 1
     utils = log(cons^nu*l^(1-nu));
 else
@@ -18,4 +18,3 @@ else
 end
 
 end
-
