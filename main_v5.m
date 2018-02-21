@@ -170,10 +170,10 @@ if loadVFI == 1
         %[ policyA1, policyC, val, exVal, ] = solveEulerEquation;
     end
 
-    save('VFI.mat');
+    save('../VFI.mat');
 
 else
-   load('VFI.mat')
+   load('../VFI.mat')
 end
 %% ------------------------------------------------------------------------ 
 % SIMULATE CONSUMER'S PATHS
