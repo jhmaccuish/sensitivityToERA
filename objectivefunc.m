@@ -1,4 +1,4 @@
-function [ value ] = objectivefunc(A1, A0, Y,L,ixP, AIME) 
+function [ value ] = objectivefunc(A1, A0, Y,L,ixP) % AIME
 
 %%
 %-------------------------------------------------------------------------------%
@@ -23,7 +23,8 @@ mortal = [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
 %total value (u(c) + b * VA1
 cons = A0  + Y - (A1)/(1+r);
 VA1 = interp1(Agrid1,EV1,A1, interpMethod, 'extrap');
-%VA1 = interp2(Agrid1, AIME1grid , EV1', A1, AIME);
+%VA1 = interp2(Agrid1, AIME1grid , EV1, A1, AIME);
+%interp2(EV1, A1/Agrid1(20), AIME/AIME1grid(10));
 value = utility(cons,L) + beta * (1- mortal(ixP))* VA1;
 
 %% ------------------------------------------------------------------------ 

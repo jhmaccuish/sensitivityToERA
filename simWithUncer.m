@@ -8,7 +8,7 @@ function [ y, c, a, v, l ] = simWithUncer(policyA1,policyL,EV,startingA)
 % Declare global we need this file have access to
 global mu sigma rho T r Tretire
 global Agrid  Ygrid numSims 
-global normBnd benefit delta spouseInc numAIME AIMEgrid pension
+global normBnd benefit delta spouseInc numAIME pension
 
 %% ------------------------------------------------------------------------
 % Initialise arrays that will hold the paths of income consumption, value
@@ -20,7 +20,6 @@ c = NaN(T, numSims);            % consumption
 l = NaN(T, numSims);            % labour supply
 v = NaN(T, numSims);            % value
 a = NaN(T + 1,numSims);         % this is the path at the start of each period, so we include the 'start' of death
-AIME = NaN(T + 1,numSims);  
 
 % Other arrays that will be used below
 e = NaN(T, numSims);            % the innovations to log income
@@ -28,7 +27,6 @@ logy1 = NaN(1, numSims);        % draws for initial income
 ly = NaN(T, numSims);           % log income
 ypathIndex = NaN(T, numSims);   % holds the index (location) in the vector 
 
-startAIME = 0;
 %% ------------------------------------------------------------------------
 % Obtain time series of incomes for our simulated individuals
 %-------------------------------------------------------------------------%#
@@ -43,13 +41,16 @@ startAIME = 0;
     % Get all the incomes, recursively
     for s = 1:1: numSims                           % loop through individuals
          ly(1, s) = truncate(logy1(1, s), -normBnd*sig_inc,normBnd*sig_inc );
-         y(1, s) = exp(ly(1, s)+polyval(delta,1));      
+         y(1, s) = exp(ly(1, s)+polyval(delta,1))+ spouseInc;      
+          %y(1, s) = (s==1)*min(Ygrid(1,:))+(s>1)*max(Ygrid(1,:));
         for t = 1:1:T                              % loop through time periods for a particular individual               
             if (t ~= T)  % Get next year's income
+                %y(t+1, s) = (s==1)*min(Ygrid(t,:))+(s>1)*max(Ygrid(t,:));
                 ly(t+1, s) = (1 -rho) * mu + rho * ly(t, s) + e(t + 1, s);
                 ly(t+1, s) = truncate(ly(t+1, s), -normBnd*sig_inc,normBnd*sig_inc );
                 y(t+1, s) = exp( ly(t+1, s) + polyval(delta,t+1) );                
             end % if (t ~= T)
+            y(t, s) = y(t, s)+(t >= Tretire)*pension+(t >= 45)*pension+ spouseInc;
        end % t     
     end % s
 
@@ -59,50 +60,33 @@ startAIME = 0;
      disp('Iteration:          \n');
      for s = 1:1: numSims
         fprintf('\b\b\b\b\b%5.0f',s);
-        a(1, s) = startingA;   
-        AIME(1,s)=startAIME;
-        for t = 1:1:T                              % loop through time periods for a particular individual               
+        a(1, s) = startingA;                   
+         for t = 1:1:T                              % loop through time periods for a particular individual               
             clear tA1 tV;                      %necessary as the dimensions of these change as we wor through this file
-            
-            
-            %tA1(:,:,:) = policyA1(t, :, :,:);  % the relevant part of the policy function
-            %tV(:,:,:) = EV(t, :, :,:);         % the relevant part of the value function
-            tA1(:,:) = policyA1(t, :, :,:);  % the relevant part of the policy function
-            tV(:,:) = EV(t, :, :,:);         % the relevant part of the value function
-            
-            %Should improve this nearest neigbhour 
+            tA1(:,:) = policyA1(t, :, :);  % the relevant part of the policy function
+            tV(:,:) = EV(t, :, :);         % the relevant part of the value function
+            %if (t < Tretire)                       % first for the before retirement periods
+%             else                          % next for the post retirement periods     
+%                 a(t+1, s) =  interp2D(Agrid(t,:)', Ygrid(t, :)', tA1, a(t, s), y(t, s));                    
+%                 v(t  , s) =  interp2D(Agrid(t,:)', Ygrid(t, :)', tV , a(t, s), y(t, s));
+% %                 a(t+1, s) = interp1(Agrid(t,:)', tA1, a(t, s), 'linear', 'extrap');
+% %                 v(t,   s) = interp1(Agrid(t,:)', tV , a(t, s), 'linear', 'extrap');
+%             end 
             [~,idxY]=min(abs(y(t, s)-Ygrid(t,:)));
             [~,idxA]=min(abs(a(t, s)-Agrid(t,:)));
-            [~,idxAIME]=min(abs(AIME(t, s)-AIMEgrid(t,:)));
-            l(t,s)=policyL(t,idxA,idxY,idxAIME);
+            l(t,s)=policyL(t,idxA,idxY);
             if ~l(t,s)
-                y(t, s)=benefit(t); 
-                AIME(t+1, s) =   AIME(t, s) * (t-1)/t;
-            else
-                if  t < 65 
-                    AIME(t+1, s) =  y(t,s)/t + AIME(t, s) * (t-1)/t; 
-                else
-                    AIME(t+1, s) =   AIME(t, s); 
-                end
+                y(t, s)=benefit(t);
             end
-
-            
             a(t+1, s) =  interp2D(Agrid(t,:)', Ygrid(t, :)', tA1, a(t, s), (y(t, s)));                    
-            %interp3(Agrid(t,:)', Ygrid(t, :)', AIMEgrid(t,:)',tA1, a(t, s), y(t, s),AIME(t, s));
             v(t  , s) =  interp2D(Agrid(t,:)', Ygrid(t, :)', tV , a(t, s), (y(t, s)));
-            %interp3(Agrid(t,:)', Ygrid(t, :)', AIMEgrid(t,:)',tV, a(t, s), y(t, s),AIME(t, s));
-
             % Check whether next period's asset is below the lowest
             % permissable
             if ( a(t+1, s) < Agrid(t+1, 1))
                [ a(t+1, s) ] = checkSimExtrap( Agrid(t+1, 1),y(t, s), t ); 
             end
-
-                        
-            y(t, s) = y(t, s) + (t >= Tretire)*pension+spouseInc + (t >= 45)*pension;%+...
-                      %(~l(t,s) && t >= 45)*dbPension(AIME(t, s));
-                      
-                        % Get consumption from today's assets, today's income and
+            
+            % Get consumption from today's assets, today's income and
             % tomorrow's optimal assets
             c(t, s) = a(t, s)  + y(t, s) - (a(t+1, s)/(1+r));
         end   %t      

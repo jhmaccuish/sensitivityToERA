@@ -181,7 +181,7 @@
 
                         ! Compute solution
                         if (ubA1 - lbA1 < params%minCons) then         ! if liquidity constrained
-                            !negVtemp = objectivefunc(lbA1, A, Y,ixL,ixt, AIME,EV1);
+                            negVtemp = objectivefunc(params, grids,lbA1, A, Y,ixL,ixt, AIME,EV1);
                             policyA1temp = lbA1;
                         else                               ! if interior solution
                             ![policyA1temp, negVtemp] = ...
@@ -254,7 +254,7 @@
     !VA1 = interp2(Agrid1, AIME1grid , EV1, A1, AIME);
     call linearinterp2_withextrap(grids%Agrid(ixP + 1, :), grids%AIMEgrid(ixP + 1, :), numPointsA, numAIME, A1, AIME, VA1, 1, 1, EV1)
     !interp2(EV1, A1/Agrid1(20), AIME/AIME1grid(10));
-    objectivefunc = utility(cons,L) + params%beta * (1- mortal(ixP))* VA1;
+    objectivefunc = utility(params,cons,L) + params%beta * (1- mortal(ixP))* VA1;
 
     !! ------------------------------------------------------------------------
     !The optimisation routine that we will use searches for the minimum of the
@@ -267,26 +267,28 @@
     end
 
     function utility(params,cons,L)
+    implicit none
     !This function takes consumption as an argument and returns utility. The
     !utility functin is CRRA except that we add a very small number (eps) to
     !consumption so that the computer can deal wi
     !inputs
     type (structparamstype), intent(in) :: params
     integer, intent(in) :: L
+    real (kind=rk), intent(in) :: cons
     !real (kind=rk), intent(in) :: A1
     !outpus
     real (kind=rk) :: utility, les
 
     if (cons<=0) then
-        error('Error in utility. Consumption is <=0');
-    end
+        !error('Error in utility! Consumption is LE 0');
+    end if
     !10/112 comuniting time -10/112
-    les=(L)*(1-params%hrsWrk -10/112)+(~L);
-    if params%gamma == 1
-    utility = log(cons^params%nu*les**(1-params%nu));
+    les=(L)*(1-params%hrsWrk -10/112)+(1-L);
+    if (params%gamma == 1) then
+    utility = log(cons**params%nu*les**(1-params%nu));
     else
-        utility= ((cons**params%nu*les**(1-params%nu))^(1-params%gamma)  )/(1-params%gamma);
-    end
+        utility= ((cons**params%nu*les**(1-params%nu))**(1-params%gamma)  )/(1-params%gamma);
+    end if
 
-    end
+    end function
     end module routines
