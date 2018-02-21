@@ -115,7 +115,6 @@ probE = mean([0.130 0.174 0.118 0.238;
               0.000 0.003 0.005 0.000;
               0.007 0.000 0.000 0.004],2);
 spouseInc = mean([5121, 5282, 6840, 7684]);          
-%delta(3)=delta(3)+spouseInc;
 probE = kron(probE, [1;1]);
 probU = kron(probU, [1;1]);
 
@@ -131,57 +130,58 @@ gridMethod = '3logsteps';    % method to construct grid. One of equalsteps, logs
 %The grid for income shocks
 %--------------------------------------%
 numPointsY = 20;           %  points in grid for income (should be 2 if hard-coded)
-numAIME = 10;
+numAIME = 1;%5;
 
 %The grid labour choices
 %--------------------------------------%
 numPointsL = 2;           %  points in grid for income (should be 2 if hard-coded)
+loadVFI = 0;
+if loadVFI == 1
 
-%% Check inputs
-checkInputs;
+    %% Check inputs
+    checkInputs;
 
-%% Get income grid
-%pension =   2.5491e+03;%3.1425e+03;%0.2649;%0.1968;
-[Ygrid, incTransitionMrx, minInc, maxInc, AIMEgrid] = getIncomeGrid; 
-%benefit = benefit;
-%pension = 0.17*mean(mean(Ygrid));
+    %% Get income grid
+    %pension =   2.5491e+03;%3.1425e+03;%0.2649;%0.1968;
+    [Ygrid, incTransitionMrx, minInc, maxInc, AIMEgrid] = getIncomeGrid; 
+    %benefit = benefit;
+    %pension = 0.17*mean(mean(Ygrid));
 
-%% ------------------------------------------------------------------------ 
-% GET ASSET GRID
-% populate grid for assets using 'gridMethod'
-% populate matrix borrowingConstraints
+    %% ------------------------------------------------------------------------ 
+    % GET ASSET GRID
+    % populate grid for assets using 'gridMethod'
+    % populate matrix borrowingConstraints
+
+    [ borrowCon, maxAss ] = getMinAndMaxAss(borrowingAllowed, benefit, maxInc, startA);
+
+    Agrid = NaN(T+1, numPointsA);
+    for ixt = 1:1:T+1
+        Agrid(ixt, :) = getGrid(borrowCon(ixt), maxAss(ixt), numPointsA, gridMethod);
+    end
 
 
-[ borrowCon, maxAss ] = getMinAndMaxAss(borrowingAllowed, benefit, maxInc, startA);
+    %% ------------------------------------------------------------------------ 
+    % SOLVE CONSUMER'S PROBLEM
+    % Get policy function and value function 
 
-Agrid = NaN(T+1, numPointsA);
-for ixt = 1:1:T+1
-    Agrid(ixt, :) = getGrid(borrowCon(ixt), maxAss(ixt), numPointsA, gridMethod);
+    if solveUsingValueFunction == 1
+        [ policyA1, policyC, policyL, val, exVal, EdU ] = solveValueFunction;
+    elseif solveUsingEulerEquation == 1
+        %[ policyA1, policyC, val, exVal, ] = solveEulerEquation;
+    end
+
+    save('VFI.mat');
+
+else
+   load('VFI.mat')
 end
-
-
-%% ------------------------------------------------------------------------ 
-% SOLVE CONSUMER'S PROBLEM
-% Get policy function and value function 
-
-if solveUsingValueFunction == 1
-    [ policyA1, policyC, policyL, val, exVal, EdU ] = solveValueFunction;
-elseif solveUsingEulerEquation == 1
-    %[ policyA1, policyC, val, exVal, ] = solveEulerEquation;
-end
-% toc;
-% return;
 %% ------------------------------------------------------------------------ 
 % SIMULATE CONSUMER'S PATHS
 % start from initial level of assets and simulate optimal consumption and
 % savings profiles over lifecycle
 
 fprintf('Start simulation\n')
-if isUncertainty == 0
-    %[ ypath, cpath, apath, vpath ] = simNoUncer(policyA1, exVal, startA);
-else
-    [ ypath, cpath, apath, vpath, lpath ] = simWithUncer(policyA1,policyL,exVal, startA);
-end
+[ ypath, cpath, apath, vpath, lpath ] = simWithUncer(policyA1,policyL,exVal, startA);
 
 % %  figure();
 % %  plot(21:(20+T),mean(lpath,2));
@@ -198,6 +198,10 @@ end
  plot(21:(20+T),mean(oLpath(:,end-500:end),2));
  title('Mean Participation Richest 10% by life-time wealth');
 toc;
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % same=zeros(1,T);
 % for i=1:T;
 %   same(i)=min(min(policyLCopy65(i,:,:)==policyL(i,:,:))) ; 
